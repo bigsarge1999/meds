@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Medication Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0c1a12; --panel:#13291b; --panel2:#1a3626; --line:#2a4d38;
+  --text:#e6efe4; --muted:#93ad9b; --amber:#e3a928; --green:#4fbf7a; --red:#e2634f;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:Barlow,system-ui,sans-serif;font-size:16px}
+h1,h2,h3{font-family:"Barlow Condensed","Arial Narrow",sans-serif;margin:0;letter-spacing:.02em}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;border-bottom:3px solid var(--amber);background:var(--panel)}
+header h1{font-size:1.9rem}
+.btn{background:var(--amber);color:#1a1405;border:0;border-radius:6px;padding:10px 16px;font-weight:600;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+.btn.danger{background:transparent;color:var(--red);border:1px solid var(--red)}
+.btn.small{padding:6px 10px;font-size:.9rem}
+main{max-width:1100px;margin:0 auto;padding:20px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px}
+.stat b{display:block;font-family:"Barlow Condensed",sans-serif;font-size:2.4rem;line-height:1}
+.stat span{color:var(--muted)}
+.stat.warn b{color:var(--amber)}
+.bar{display:flex;gap:10px;margin-bottom:16px}
+.bar input{flex:1}
+input,select,textarea{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:10px;width:100%}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--green);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.card.low{border-left-color:var(--amber)}
+.card.out{border-left-color:var(--red)}
+.card h3{font-size:1.6rem}
+.dose{color:var(--amber);font-weight:600}
+.purpose,.notes{color:var(--muted);font-size:.95rem}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--panel2);border-radius:999px;padding:6px 14px;cursor:pointer}
+.chip.done{background:var(--green);color:#06210f;border-color:var(--green);font-weight:600}
+.refill{font-size:.95rem}
+.refill.low{color:var(--amber)} .refill.out{color:var(--red)}
+.actions{display:flex;gap:8px;margin-top:auto}
+.empty{text-align:center;color:var(--muted);padding:50px 10px;border:1px dashed var(--line);border-radius:8px}
+dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px;width:min(480px,94vw);padding:20px}
+dialog::backdrop{background:rgba(0,0,0,.65)}
+label{display:block;margin:12px 0 4px;color:var(--muted);font-size:.95rem}
+.slots{display:flex;flex-wrap:wrap;gap:8px}
+.slots label{display:flex;align-items:center;gap:6px;margin:0;color:var(--text);border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer}
+.slots input{width:auto}
+.row{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+#auth{max-width:360px;margin:12vh auto;padding:24px;background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--amber);border-radius:10px}
+#auth .row{justify-content:stretch} #auth .row .btn{flex:1}
+.err{color:var(--red);min-height:1.2em;margin-top:10px;font-size:.95rem}
+#adminBar{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 20px;background:var(--amber);color:#1a1405;font-weight:600}
+#adminBar .btn{background:#1a1405;color:var(--amber)} #adminBar .btn.ghost{background:transparent;color:#1a1405;border-color:#1a1405}
+.bar select{font-size:1.05rem}
+[hidden]{display:none!important}
+@media(max-width:560px){.stats{grid-template-columns:1fr 1fr 1fr}.stat b{font-size:1.8rem}}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header>
+    <h1>Medication Tracker</h1>
+    <div style="display:flex;gap:8px">
+      <button class="btn ghost" id="adminBtn">Admin</button>
+    </div>
+  </header>
+  <div id="adminBar" hidden>
+    <span>Admin mode</span>
+    <span style="display:flex;gap:8px">
+      <button class="btn small" id="add">Add medication</button>
+      <button class="btn ghost small" id="exitAdmin">Exit admin</button>
+    </span>
+  </div>
+  <main>
+    <div class="bar"><input id="pick" type="search" list="medList" placeholder="Search medications" aria-label="Search medications" autocomplete="off"><datalist id="medList"></datalist></div>
+    <div class="grid" id="grid"></div>
+  </main>
+</div>
+
+<dialog id="pwDlg">
+  <form id="pwForm" method="dialog">
+    <h2>Admin</h2>
+    <label for="pwIn">Password</label>
+    <input id="pwIn" type="password" inputmode="numeric" autocomplete="off" required>
+    <div class="err" id="pwErr" role="alert"></div>
+    <div class="row">
+      <button type="button" class="btn ghost" id="pwCancel">Cancel</button>
+      <button type="submit" class="btn">Enter admin</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg">
+  <form method="dialog" id="form">
+    <h2 id="dtitle">Add medication</h2>
+    <label for="fName">Medication name</label><input id="fName" required>
+    <label for="fDose">Dose</label><input id="fDose" placeholder="e.g. 10 mg, 1 tablet">
+    <label>When do you take it?</label>
+    <div class="slots" id="fSlots">
+      <label><input type="checkbox" value="Morning">Morning</label>
+      <label><input type="checkbox" value="Midday">Midday</label>
+      <label><input type="checkbox" value="Evening">Evening</label>
+      <label><input type="checkbox" value="Bedtime">Bedtime</label>
+    </div>
+    <div style="color:var(--muted);font-size:.85rem;margin-top:6px">Leave all unchecked for as-needed medications.</div>
+    <label for="fPurpose">What it is for</label><input id="fPurpose">
+    <label for="fRefill">Next refill date</label><input id="fRefill" type="date">
+    <label for="fNotes">Notes</label><textarea id="fNotes" rows="2"></textarea>
+    <div class="row">
+      <button type="button" class="btn ghost" id="cancel">Cancel</button>
+      <button type="submit" class="btn">Save medication</button>
+    </div>
+  </form>
+</dialog>
+
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {getFirestore,collection,onSnapshot,addDoc,setDoc,updateDoc,deleteDoc,doc}
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+/* ===== PASTE YOUR FIREBASE WEB APP CONFIG HERE ===== */
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  appId: "YOUR_APP_ID"
+};
+/* =================================================== */
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const $ = id => document.getElementById(id);
+const SLOT_ORDER = ["Morning","Midday","Evening","Bedtime"];
+
+let meds = [], editingId = null, admin = false;
+const ADMIN_PW = "2899";
+
+const pad = n => String(n).padStart(2,"0");
+const todayKey = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const daysUntil = ds => ds ? Math.round((new Date(ds+"T00:00") - new Date(todayKey()+"T00:00")) / 864e5) : null;
+const takenToday = m => (m.taken && m.taken[todayKey()]) || [];
+
+/* ---------- Load ---------- */
+const COL = collection(db,"medications");
+onSnapshot(COL,
+  snap => { meds = snap.docs.map(d => ({id:d.id,...d.data()})).sort((a,b)=>a.name.localeCompare(b.name)); render(); },
+  err => { $("grid").innerHTML = `<div class="empty" style="grid-column:1/-1">Could not load medications: ${esc(err.code)}. Check your Firestore rules.</div>`; });
+
+/* ---------- Render ---------- */
+function render() {
+  $("medList").innerHTML = meds.map(m => `<option value="${esc(m.name)}"></option>`).join("");
+  const q = $("pick").value.trim().toLowerCase();
+  if (!q) { $("grid").innerHTML = ""; return; }
+  const list = meds.filter(m => [m.name,m.purpose,m.dose].join(" ").toLowerCase().includes(q));
+
+  if (!list.length) {
+    $("grid").innerHTML = `<div class="empty" style="grid-column:1/-1">No medication matches your search.</div>`;
+    return;
+  }
+  $("grid").innerHTML = list.map(m => {
+    const d = daysUntil(m.refillDate);
+    const cls = d === null ? "" : d < 0 ? "out" : d <= 7 ? "low" : "";
+    const refillTxt = d === null ? "" : d < 0 ? `Refill overdue by ${-d} day${d===-1?"":"s"}` : d === 0 ? "Refill due today" : `Refill in ${d} day${d===1?"":"s"} (${esc(m.refillDate)})`;
+    const times = (m.times || []).slice().sort((a,b)=>SLOT_ORDER.indexOf(a)-SLOT_ORDER.indexOf(b));
+    const chips = times.length
+      ? times.map(t => `<button class="chip ${takenToday(m).includes(t)?"done":""}" data-act="take" data-id="${m.id}" data-t="${t}" aria-pressed="${takenToday(m).includes(t)}">${t}${takenToday(m).includes(t)?" ✓":""}</button>`).join("")
+      : `<span class="purpose">As needed</span>`;
+    return `<article class="card ${cls}">
+      <div><h3>${esc(m.name)}</h3><div class="dose">${esc(m.dose)}</div></div>
+      ${m.purpose ? `<div class="purpose">For: ${esc(m.purpose)}</div>` : ""}
+      <div class="chips">${chips}</div>
+      ${refillTxt ? `<div class="refill ${cls}">${refillTxt}</div>` : ""}
+      ${m.notes ? `<div class="notes">${esc(m.notes)}</div>` : ""}
+      ${admin ? `<div class="actions">
+        <button class="btn ghost small" data-act="edit" data-id="${m.id}">Edit</button>
+        <button class="btn danger small" data-act="del" data-id="${m.id}">Delete</button>
+      </div>` : ""}</article>`;
+  }).join("");
+}
+$("pick").oninput = render;
+
+/* ---------- Card actions ---------- */
+$("grid").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-act]"); if (!b) return;
+  const m = meds.find(x => x.id === b.dataset.id); if (!m) return;
+  if (b.dataset.act !== "take" && !admin) return;
+  if (b.dataset.act === "take") {
+    const t = b.dataset.t, cur = takenToday(m);
+    const next = cur.includes(t) ? cur.filter(x => x !== t) : [...cur, t];
+    await updateDoc(doc(db,"medications",m.id), {taken: {[todayKey()]: next}});
+  } else if (b.dataset.act === "edit") {
+    openForm(m);
+  } else if (b.dataset.act === "del") {
+    if (confirm(`Delete ${m.name}?`)) await deleteDoc(doc(db,"medications",m.id));
+  }
+});
+
+/* ---------- Admin ---------- */
+$("adminBtn").onclick = () => { $("pwIn").value = ""; $("pwErr").textContent = ""; $("pwDlg").showModal(); };
+$("pwCancel").onclick = () => $("pwDlg").close();
+$("pwForm").addEventListener("submit", e => {
+  e.preventDefault();
+  if ($("pwIn").value === ADMIN_PW) {
+    admin = true; $("pwDlg").close();
+    $("adminBar").hidden = false; $("adminBtn").hidden = true; render();
+  } else { $("pwErr").textContent = "Wrong password. Try again."; $("pwIn").select(); }
+});
+$("exitAdmin").onclick = () => { admin = false; $("adminBar").hidden = true; $("adminBtn").hidden = false; render(); };
+
+/* ---------- Form ---------- */
+function openForm(m) {
+  editingId = m ? m.id : null;
+  $("dtitle").textContent = m ? "Edit medication" : "Add medication";
+  $("fName").value = m?.name || ""; $("fDose").value = m?.dose || "";
+  $("fPurpose").value = m?.purpose || ""; $("fRefill").value = m?.refillDate || ""; $("fNotes").value = m?.notes || "";
+  document.querySelectorAll("#fSlots input").forEach(c => c.checked = (m?.times || []).includes(c.value));
+  $("dlg").showModal();
+}
+$("add").onclick = () => openForm(null);
+$("cancel").onclick = () => $("dlg").close();
+$("form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const data = {
+    name: $("fName").value.trim(), dose: $("fDose").value.trim(),
+    purpose: $("fPurpose").value.trim(), refillDate: $("fRefill").value, notes: $("fNotes").value.trim(),
+    times: [...document.querySelectorAll("#fSlots input:checked")].map(c => c.value)
+  };
+  if (!data.name) return;
+  try {
+    if (editingId) await updateDoc(doc(db,"medications",editingId), data);
+    else await addDoc(COL, {...data, taken:{}});
+    $("dlg").close();
+  } catch (err) { alert("Could not save: " + err.code); }
+});
+</script>
+</body>
+</html>
